@@ -132,6 +132,82 @@ nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 .controls output { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink); font-variant-numeric: tabular-nums; min-width: 3.5ch; }
 input[type="range"] { accent-color: var(--accent); width: 160px; max-width: 100%; }
 
+/* 3D viewer: a dark instrument panel in both themes so the atoms read like a lab display */
+.v3d-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab {
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.tab:hover { border-color: var(--accent); color: var(--accent); }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.v3d {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #1f2d3b;
+  background:
+    radial-gradient(120% 90% at 28% 18%, #1c2d40 0%, #0e1620 58%, #0a0f15 100%);
+}
+.v3d::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+#v3d { display: block; width: 100%; height: 450px; touch-action: pan-y; cursor: grab; position: relative; z-index: 1; }
+#v3d:active { cursor: grabbing; }
+.v3d-hud, .v3d-legend {
+  position: absolute;
+  left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  pointer-events: none;
+  z-index: 2;
+  max-width: calc(100% - 24px);
+}
+.v3d-hud { top: 12px; }
+.v3d-legend { bottom: 12px; align-items: center; }
+.v3d-hud span, .v3d-legend span {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.5;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: rgba(8, 13, 19, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #dbe6f0;
+  font-variant-numeric: tabular-nums;
+}
+.v3d-hud span:first-child { color: #ffb48a; }
+.v3d-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+#v3d-plot {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 180px;
+  height: 86px;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 4px;
+  background: rgba(8, 13, 19, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: none;
+}
+.v3d .fallback { display: none; color: #dbe6f0; padding: 40px 24px; margin: 0; position: relative; z-index: 2; }
+.v3d.no-gl #v3d, .v3d.no-gl .v3d-hud, .v3d.no-gl .v3d-legend { display: none; }
+.v3d.no-gl .fallback { display: block; }
+.open3d { align-self: flex-start; }
+
 main { display: flex; flex-direction: column; gap: 60px; min-width: 0; }
 section { display: flex; flex-direction: column; gap: 18px; scroll-margin-top: 32px; }
 .section-head {
@@ -262,6 +338,11 @@ footer { color: var(--muted); font-size: var(--step--1); font-family: var(--font
   .side { position: static; }
   nav ul { flex-direction: row; flex-wrap: wrap; gap: 4px 16px; }
   .sim.md { height: 290px; }
+  #v3d { height: 380px; }
+}
+@media (max-width: 560px) {
+  #v3d { height: 340px; }
+  #v3d-plot { width: 130px; height: 66px; bottom: 44px; }
 }
 @media (max-width: 480px) {
   .shell { padding: 22px 16px 56px; }
@@ -290,6 +371,7 @@ footer { color: var(--muted); font-size: var(--step--1); font-family: var(--font
         <li><a href="#research">Research</a></li>
         <li><a href="#publications">Publications</a></li>
         <li><a href="#projects">Projects</a></li>
+        <li><a href="#playground">Playground</a></li>
         <li><a href="#experience">Experience</a></li>
         <li><a href="#contact">Contact</a></li>
       </ul>
@@ -303,23 +385,25 @@ footer { color: var(--muted); font-size: var(--step--1); font-family: var(--font
   </aside>
 
   <main>
-    <section class="hero" aria-label="Live molecular dynamics">
-      <div class="hero-frame">
-        <canvas class="sim md" id="md" role="img" aria-label="Live 2D Lennard-Jones molecular dynamics simulation. Atoms in a local hexagonal crystal are coloured orange."></canvas>
-        <div class="hud" aria-hidden="true">
-          <span class="live">2D Lennard-Jones MD</span>
-          <span id="md-T">T* 0.00</span>
-          <span id="md-x">crystal 0%</span>
-        </div>
+    <section class="hero" id="viewer" aria-label="3D materials viewer">
+      <div class="v3d-tabs" role="tablist" aria-label="3D scenes">
+        <button class="tab" role="tab" type="button" data-scene="sto" aria-selected="true">SrTiO₃ phase transition</button>
+        <button class="tab" role="tab" type="button" data-scene="gen" aria-selected="false">Generating a solid electrolyte</button>
+        <button class="tab" role="tab" type="button" data-scene="cu" aria-selected="false">CO₂ on Cu(111)</button>
       </div>
-      <div class="controls">
-        <label for="md-temp">Temperature T*</label>
-        <input type="range" id="md-temp" min="0.05" max="1.5" step="0.01" value="0.22">
-        <output id="md-temp-val" for="md-temp">0.22</output>
-        <button class="btn" id="md-quench" type="button">Quench</button>
-        <button class="btn" id="md-melt" type="button">Melt</button>
+      <div class="v3d" id="v3d-wrap">
+        <canvas id="v3d" role="img" aria-label="Interactive 3D view of the selected atomic structure"></canvas>
+        <div class="v3d-hud" id="v3d-hud" aria-live="off"></div>
+        <div class="v3d-legend" id="v3d-legend" aria-hidden="true"></div>
+        <canvas id="v3d-plot" aria-hidden="true"></canvas>
+        <p class="fallback">The 3D viewer needs WebGL, which this browser has turned off. Everything else on the page still works.</p>
       </div>
-      <p class="cap">Molecular dynamics running in your browser, in reduced Lennard-Jones units. It starts hot and gets quenched, so you can see crystals nucleate and grow. Atoms with exactly six neighbours sit in a local hexagonal lattice and turn orange. Move your cursor through the box (or drag sideways on a phone) to push atoms around.</p>
+      <div class="controls" id="v3d-controls">
+        <label for="v3d-T" id="v3d-T-label">Temperature (K)</label>
+        <input type="range" id="v3d-T" min="10" max="300" step="1" value="30">
+        <output id="v3d-T-val" for="v3d-T">30</output>
+      </div>
+      <p class="cap" id="v3d-cap"></p>
     </section>
 
     <section id="about" class="intro">
@@ -414,6 +498,7 @@ footer { color: var(--muted); font-size: var(--step--1); font-family: var(--font
           <h3>LandauAgent</h3>
           <p>An agent for Landau theory of structural phase transitions. An exact group-theory engine works out irreps, invariants and forced couplings, MACE-MP-0 supplies frozen-mode energies, and a tool-calling LLM plans and explains but never does the group theory itself. Checked on SrTiO₃ and on hybrid improper ferroelectricity in Ca₃Ti₂O₇. Built for the 2026 OSI Hackathon.</p>
           <p class="cap">Drag the temperature below T<sub>c</sub> and the single minimum of F(η) = (T − T<sub>c</sub>)η² + η⁴ splits in two. The order parameter picks a side at random.</p>
+          <button class="btn open3d" type="button" data-open="sto">See SrTiO₃ in 3D</button>
           <ul class="tools"><li>group theory</li><li>MACE-MP-0</li><li>LLM agents</li></ul>
         </article>
         <article class="card">
@@ -426,6 +511,7 @@ footer { color: var(--muted); font-size: var(--step--1); font-family: var(--font
             <li>7 Li–Zr–O–Cl relaxed with DFT</li>
           </ul>
           <p class="cap">Toy version of the selection step: the shading is the surrogate's prediction, and each new ring is the candidate it picks next by upper confidence bound.</p>
+          <button class="btn open3d" type="button" data-open="gen">Watch a candidate get generated in 3D</button>
           <ul class="tools"><li>CrysVCD</li><li>Gaussian processes</li><li>Quantum ESPRESSO</li></ul>
         </article>
         <article class="card">
@@ -440,6 +526,7 @@ footer { color: var(--muted); font-size: var(--step--1); font-family: var(--font
           <h3>MACE-MP-0 for CO₂ and CO adsorption</h3>
           <p>Pulled adsorption data from Catalysis-Hub over GraphQL, fine-tuned MACE-MP-0 for Cu, Ni and Pd surfaces, and ran Langevin MD on CO₂ over Cu(111).</p>
           <p class="cap">Schematic parity plot: predictions from the foundation model drift off the diagonal on adsorbates and pull back onto it during fine-tuning.</p>
+          <button class="btn open3d" type="button" data-open="cu">See CO₂ on Cu(111) in 3D</button>
           <ul class="tools"><li>MACE</li><li>ASE</li><li>Catalysis-Hub</li></ul>
         </article>
         <article class="card">
@@ -448,6 +535,26 @@ footer { color: var(--muted); font-size: var(--step--1); font-family: var(--font
           <ul class="tools"><li>OC20/OC22</li><li>TabPFN</li><li>calibration</li></ul>
         </article>
       </div>
+    </section>
+
+    <section id="playground" aria-labelledby="play-h">
+      <div class="section-head"><h2 id="play-h">Playground: melt a crystal</h2></div>
+      <div class="hero-frame">
+        <canvas class="sim md" id="md" role="img" aria-label="Live 2D Lennard-Jones molecular dynamics simulation. Atoms in a local hexagonal crystal are coloured orange."></canvas>
+        <div class="hud" aria-hidden="true">
+          <span class="live">2D Lennard-Jones MD</span>
+          <span id="md-T">T* 0.00</span>
+          <span id="md-x">crystal 0%</span>
+        </div>
+      </div>
+      <div class="controls">
+        <label for="md-temp">Temperature T*</label>
+        <input type="range" id="md-temp" min="0.05" max="1.5" step="0.01" value="0.22">
+        <output id="md-temp-val" for="md-temp">0.22</output>
+        <button class="btn" id="md-quench" type="button">Quench</button>
+        <button class="btn" id="md-melt" type="button">Melt</button>
+      </div>
+      <p class="cap">Molecular dynamics in reduced Lennard-Jones units. It starts hot and gets quenched, so you can watch crystals nucleate and grow. Atoms with exactly six neighbours sit in a local hexagonal lattice and turn orange. Move your cursor through the box (or drag sideways on a phone) to push atoms around.</p>
     </section>
 
     <section id="experience" aria-labelledby="exp-h">
@@ -516,6 +623,7 @@ footer { color: var(--muted); font-size: var(--step--1); font-family: var(--font
   </main>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function () {
   "use strict";
@@ -1262,12 +1370,422 @@ footer { color: var(--muted); font-size: var(--step--1); font-family: var(--font
     };
   }
 
+  /* ---------- 10. 3D viewer: three scenes from my projects ---------- */
+  function Viewer3D(cv) {
+    var THREE = window.THREE, wrap = document.getElementById("v3d-wrap");
+    if (!THREE) { wrap.classList.add("no-gl"); return null; }
+    var renderer;
+    try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); }
+    catch (e) { wrap.classList.add("no-gl"); return null; }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
+
+    var hudEl = document.getElementById("v3d-hud"), legEl = document.getElementById("v3d-legend");
+    var plot = document.getElementById("v3d-plot"), capEl = document.getElementById("v3d-cap");
+    var ctrl = document.getElementById("v3d-controls"), slider = document.getElementById("v3d-T");
+    var sLabel = document.getElementById("v3d-T-label"), sOut = document.getElementById("v3d-T-val");
+    var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab[data-scene]"));
+
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
+    scene.add(new THREE.HemisphereLight(0xe4ecff, 0x1a2230, 0.9));
+    var key = new THREE.DirectionalLight(0xffffff, 0.95); key.position.set(6, 10, 12); scene.add(key);
+    var rim = new THREE.DirectionalLight(0x8fb4ff, 0.45); rim.position.set(-8, -3, -6); scene.add(rim);
+    var pivot = new THREE.Group(); scene.add(pivot);
+    var dummy = new THREE.Object3D(), UP = new THREE.Vector3(0, 1, 0), tmpV = new THREE.Vector3();
+    var sphere = new THREE.SphereGeometry(1, 28, 18);
+    var cyl = new THREE.CylinderGeometry(1, 1, 1, 12);
+
+    function inst(geo, mat, n, parent) {
+      var m = new THREE.InstancedMesh(geo, mat, n);
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      parent.add(m); return m;
+    }
+    function put(mesh, i, x, y, z, s) {
+      dummy.position.set(x, y, z); dummy.rotation.set(0, 0, 0); dummy.scale.set(s, s, s);
+      dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
+    }
+    function std(color, o) {
+      var p = { color: color, roughness: 0.32, metalness: 0.08 };
+      if (o) for (var k in o) p[k] = o[k];
+      return new THREE.MeshStandardMaterial(p);
+    }
+    function hexCss(n) { return "#" + ("000000" + n.toString(16)).slice(-6); }
+
+    /* --- Scene A: SrTiO3 antiferrodistortive transition (LandauAgent) --- */
+    function makeSTO() {
+      var g = new THREE.Group(); pivot.add(g);
+      var NX = 4, NY = 4, NZ = 2, NO = NX * NY * NZ, Tc = 105, EX = 5;
+      var octGeo = new THREE.OctahedronGeometry(0.5, 0);
+      var oct = inst(octGeo, std(0x4f8fd6, { transparent: true, opacity: 0.45, flatShading: true, depthWrite: false, roughness: 0.55 }), NO, g);
+      var ti = inst(sphere, std(0xc9d3dc, { metalness: 0.35 }), NO, g);
+      var ox = inst(sphere, std(0xef6a3a), NO * 6, g);
+      var srList = [];
+      for (var i = 0; i < NX - 1; i++) for (var j = 0; j < NY - 1; j++) for (var k = -1; k < NZ; k++) srList.push([i + 0.5, j + 0.5, k + 0.5]);
+      var sr = inst(sphere, std(0x3fbf98), srList.length, g);
+      var ep = new THREE.EdgesGeometry(octGeo).attributes.position.array;
+      var linePos = new Float32Array(NO * ep.length);
+      var lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(linePos, 3));
+      g.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xbcd6f5, transparent: true, opacity: 0.6 })));
+      var verts = [[0.5, 0, 0], [-0.5, 0, 0], [0, 0.5, 0], [0, -0.5, 0], [0, 0, 0.5], [0, 0, -0.5]];
+      var noise = new Float32Array(NO), T = 30, phiReal = 0, clock = 0, userAt = -1e9;
+      function phiOf(T) { return T < Tc ? 2.1 * Math.pow(1 - T / Tc, 0.33) : 0; }
+      return {
+        group: g,
+        slider: { min: 10, max: 300, step: 1, label: "Temperature (K)" },
+        getT: function () { return T; },
+        setT: function (v) { T = v; userAt = clock; },
+        view: { rx: -0.42, spin: false, dist: 10.8 },
+        legend: [["Ti", 0xc9d3dc], ["O", 0xef6a3a], ["Sr", 0x3fbf98], ["TiO₆", 0x4f8fd6]],
+        caption: "SrTiO₃ goes through an antiferrodistortive transition at 105 K. Below it, the TiO₆ octahedra (blue) rotate in alternating directions around the c axis and the cubic cell turns tetragonal. It's the textbook case I checked LandauAgent on. Drag the temperature, or leave it alone and it sweeps by itself. Watch the octahedra wobble more as T approaches Tc. Rotations are drawn five times larger than the real ~2° so you can see them.",
+        step: function (dt) {
+          clock += dt;
+          if (clock - userAt > 9) { T = 160 - 140 * Math.cos(clock * 2 * Math.PI / 20); syncSlider(); }
+          var red = Math.abs(T - Tc) / Tc, sig = 0.004 + 0.02 * Math.sqrt(T / 300) / (red + 0.25);
+          var th = 3;
+          for (var i = 0; i < NO; i++) noise[i] += -th * noise[i] * dt + sig * Math.sqrt(2 * th * dt) * gauss();
+          phiReal = phiOf(T);
+        },
+        render: function () {
+          var phi = phiReal * EX * Math.PI / 180, a = Math.cos(phi);
+          var cx = (NX - 1) * a / 2, cy = (NY - 1) * a / 2, cz = (NZ - 1) / 2, n = 0, li = 0;
+          for (var k = 0; k < NZ; k++) for (var j = 0; j < NY; j++) for (var i = 0; i < NX; i++) {
+            var idx = (k * NY + j) * NX + i, s = ((i + j + k) % 2) ? -1 : 1, th = s * phi + noise[idx] * EX;
+            var px = i * a - cx, py = j * a - cy, pz = k - cz, c = Math.cos(th), sn = Math.sin(th);
+            dummy.position.set(px, py, pz); dummy.rotation.set(0, 0, th); dummy.scale.set(1, 1, 1);
+            dummy.updateMatrix(); oct.setMatrixAt(idx, dummy.matrix);
+            put(ti, idx, px, py, pz, 0.12);
+            for (var v = 0; v < 6; v++) { var q = verts[v]; put(ox, n++, px + q[0] * c - q[1] * sn, py + q[0] * sn + q[1] * c, pz + q[2], 0.11); }
+            for (var e = 0; e < ep.length; e += 3) {
+              linePos[li++] = px + ep[e] * c - ep[e + 1] * sn;
+              linePos[li++] = py + ep[e] * sn + ep[e + 1] * c;
+              linePos[li++] = pz + ep[e + 2];
+            }
+          }
+          for (var m = 0; m < srList.length; m++) put(sr, m, srList[m][0] * a - cx, srList[m][1] * a - cy, srList[m][2] - cz, 0.2);
+          oct.instanceMatrix.needsUpdate = ti.instanceMatrix.needsUpdate = ox.instanceMatrix.needsUpdate = sr.instanceMatrix.needsUpdate = true;
+          lg.attributes.position.needsUpdate = true;
+        },
+        hud: function () {
+          return ["SrTiO₃", "T = " + Math.round(T) + " K", "φ = " + phiReal.toFixed(1) + "°", T < Tc ? "I4/mcm, tetragonal" : "Pm-3m, cubic"];
+        }
+      };
+    }
+
+    /* --- Scene B: generate, relax and test a Li-Zr-O-Cl candidate (CrysVCD loop) --- */
+    function makeGen() {
+      var g = new THREE.Group(); pivot.add(g);
+      var S = 4, sites = [], NS = S * S * S, TT = 14.5;
+      for (var i = 0; i < S; i++) for (var j = 0; j < S; j++) for (var k = 0; k < S; k++)
+        sites.push({ p: [i - (S - 1) / 2, j - (S - 1) / 2, k - (S - 1) / 2], cat: (i + j + k) % 2 === 0 });
+      var COL = { Li: 0xa48be6, Zr: 0x5fa2df, O: 0xef6a3a, Cl: 0x4fc28a }, RAD = { Li: 0.2, Zr: 0.27, O: 0.21, Cl: 0.29 };
+      var NAMES = ["Li", "Zr", "O", "Cl"];
+      var formulas = ["Li₂ZrOCl₄", "Li₃ZrO₂Cl₃", "Li₄ZrO₃Cl₂", "Li₂Zr₂O₂Cl₆", "Li₃Zr₂O₃Cl₅", "Li₄Zr₂O₄Cl₄", "Li₅ZrClO₄"];
+      var atoms = inst(sphere, std(0xffffff, { roughness: 0.28 }), NS, g);
+      var col = new THREE.Color();
+      for (var a0 = 0; a0 < NS; a0++) atoms.setColorAt(a0, col.setHex(0xffffff));
+      var halo = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0xc7b6ff, transparent: true, opacity: 0.25, depthWrite: false }));
+      g.add(halo);
+      var boxPos = new Float32Array(24 * 3), bg = new THREE.BufferGeometry();
+      bg.setAttribute("position", new THREE.BufferAttribute(boxPos, 3));
+      var boxMat = new THREE.LineBasicMaterial({ color: 0x9fb8d6, transparent: true, opacity: 0.5 });
+      g.add(new THREE.LineSegments(bg, boxMat));
+      var corners = [];
+      for (var c0 = 0; c0 < 8; c0++) corners.push([(c0 & 1 ? 1 : -1) * S / 2, (c0 & 2 ? 1 : -1) * S / 2, (c0 & 4 ? 1 : -1) * S / 2]);
+      var cedges = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+
+      var sp, noise, M0, vac, hops, t = 0, cycle = 0, flick = 0, formula = formulas[0], shown = formula, epts = [];
+      function rnd3() { return [gauss(), gauss(), gauss()]; }
+      function newCycle() {
+        sp = sites.map(function (s) { var r = Math.random(); return s.cat ? (r < 0.25 ? "Zr" : "Li") : (r < 0.3 ? "O" : "Cl"); });
+        noise = sites.map(rnd3);
+        M0 = [1 + 0.35 * gauss(), 0.3 * gauss(), 0.3 * gauss(), 0.3 * gauss(), 1 + 0.35 * gauss(), 0.3 * gauss(), 0.3 * gauss(), 0.3 * gauss(), 1 + 0.35 * gauss()];
+        var lis = []; sites.forEach(function (s, i) { if (sp[i] === "Li") lis.push(i); });
+        vac = lis[Math.floor(Math.random() * lis.length)];
+        hops = []; var v = vac, used = {}; used[vac] = 1;
+        for (var h = 0; h < 3; h++) {
+          var cand = lis.filter(function (i) {
+            if (used[i]) return false;
+            var a = sites[i].p, b = sites[v].p, d = (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]);
+            return Math.abs(d - 2) < 0.01;
+          });
+          if (!cand.length) break;
+          var from = cand[Math.floor(Math.random() * cand.length)];
+          hops.push({ atom: from, to: v, t0: 9.9 + h * 1.05 }); used[from] = 1; v = from;
+        }
+        formula = formulas[cycle % formulas.length]; cycle++;
+        epts = [];
+        for (var s = 0; s <= 40; s++) epts.push(Math.exp(-s / 6) * (0.85 + 0.25 * Math.cos(s * 0.9)) + 0.04 * Math.exp(-s / 20) * gauss());
+      }
+      newCycle(); t = 11.2;
+      var pos = sites.map(function () { return [0, 0, 0]; });
+      function M(u) {
+        var I = [1, 0, 0, 0, 1, 0, 0, 0, 1], r = [];
+        for (var i = 0; i < 9; i++) r.push(M0[i] + (I[i] - M0[i]) * u);
+        return r;
+      }
+      function apply(m, p) { return [m[0] * p[0] + m[1] * p[1] + m[2] * p[2], m[3] * p[0] + m[4] * p[1] + m[5] * p[2], m[6] * p[0] + m[7] * p[1] + m[8] * p[2]]; }
+      function phase() { return t < 1.4 ? 0 : t < 7 ? 1 : t < 9.5 ? 2 : t < 13.6 ? 3 : 4; }
+      return {
+        group: g, slider: null,
+        view: { rx: 0.42, spin: true, dist: 15 },
+        legend: [["Li", COL.Li], ["Zr", COL.Zr], ["O", COL.O], ["Cl", COL.Cl]],
+        caption: "How a generated candidate gets to a DFT result. A composition is sampled, the atoms are denoised out of random positions the way generative crystal models build structures, the cell is relaxed with DFT (energy trace, bottom right), and then the thing a solid electrolyte has to do gets checked: Li⁺ hopping into a vacancy. The formulas are the Li–Zr–O–Cl candidates I relaxed with Quantum ESPRESSO. The rocksalt arrangement itself is schematic.",
+        step: function (dt) {
+          t += dt;
+          if (t >= TT) { t = 0; newCycle(); }
+          flick += dt;
+          if (t < 1.4 && flick > 0.12) { flick = 0; shown = formulas[Math.floor(Math.random() * formulas.length)]; }
+          if (t >= 1.4) shown = formula;
+        },
+        render: function () {
+          var ph = phase(), m, i;
+          var u = ph === 0 ? 0 : ph === 1 ? ease((t - 1.4) / 5.6) : 1;
+          m = M(u);
+          var sig = Math.pow(1 - u, 1.6);
+          var breathe = ph === 2 ? 1 + 0.045 * Math.exp(-2.2 * (t - 7)) * Math.cos(8 * (t - 7)) : 1;
+          var fade = ph === 4 ? 1 - ease((t - 13.6) / 0.9) : t < 0.3 ? ease(t / 0.3) : 1;
+          for (i = 0; i < NS; i++) {
+            var p = apply(m, sites[i].p), nz = noise[i], jit = ph <= 1 ? 0.07 * sig : 0;
+            pos[i][0] = p[0] * breathe + 2.1 * sig * nz[0] + jit * gauss();
+            pos[i][1] = p[1] * breathe + 2.1 * sig * nz[1] + jit * gauss();
+            pos[i][2] = p[2] * breathe + 2.1 * sig * nz[2] + jit * gauss();
+          }
+          var hopAtom = -1, hx = 0, hy = 0, hz = 0;
+          if (ph >= 3) {
+            hops.forEach(function (h) {
+              var a = sites[h.atom].p, b = sites[h.to].p;
+              if (t >= h.t0 + 0.65) { pos[h.atom] = [b[0], b[1], b[2]]; }
+              else if (t >= h.t0) {
+                var q = ease((t - h.t0) / 0.65), arc = 0.28 * Math.sin(Math.PI * q);
+                pos[h.atom] = [a[0] + (b[0] - a[0]) * q + arc * 0.5, a[1] + (b[1] - a[1]) * q + arc, a[2] + (b[2] - a[2]) * q];
+                hopAtom = h.atom; hx = pos[h.atom][0]; hy = pos[h.atom][1]; hz = pos[h.atom][2];
+              }
+            });
+          }
+          for (i = 0; i < NS; i++) {
+            var name = ph === 0 ? NAMES[(i * 7 + Math.floor(t / 0.12) * 3) % 4] : sp[i];
+            var r = RAD[name] * fade * (i === vac ? 0 : 1) * (i === hopAtom ? 1.2 : 1);
+            put(atoms, i, pos[i][0], pos[i][1], pos[i][2], r);
+            atoms.setColorAt(i, col.setHex(COL[name]));
+          }
+          atoms.instanceMatrix.needsUpdate = true;
+          if (atoms.instanceColor) atoms.instanceColor.needsUpdate = true;
+          halo.visible = hopAtom >= 0;
+          if (hopAtom >= 0) { halo.position.set(hx, hy, hz); halo.scale.setScalar(0.5 + 0.08 * Math.sin(t * 20)); }
+          var bi = 0;
+          cedges.forEach(function (e) {
+            [e[0], e[1]].forEach(function (ci) {
+              var p = apply(m, corners[ci]);
+              boxPos[bi++] = p[0] * breathe; boxPos[bi++] = p[1] * breathe; boxPos[bi++] = p[2] * breathe;
+            });
+          });
+          bg.attributes.position.needsUpdate = true;
+          boxMat.opacity = 0.5 * fade;
+          this.drawPlot();
+        },
+        drawPlot: function () {
+          var ph = phase(), show = ph >= 2 && ph < 4;
+          plot.style.display = show ? "block" : "none";
+          if (!show) return;
+          var f = fit(plot), ctx = f.ctx, w = f.w, h = f.h;
+          ctx.clearRect(0, 0, w, h);
+          var prog = ph === 2 ? clamp((t - 7) / 2.4, 0, 1) : 1, nshow = Math.max(2, Math.round(prog * 40));
+          var X = function (s) { return 10 + s / 40 * (w - 20); }, Y = function (e) { return h - 14 - e / 1.15 * (h - 30); };
+          ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(10, h - 14); ctx.lineTo(w - 10, h - 14); ctx.stroke();
+          ctx.strokeStyle = "#ffb48a"; ctx.lineWidth = 1.6; ctx.beginPath();
+          for (var s = 0; s < nshow; s++) ctx.lineTo(X(s), Y(Math.max(0, epts[s])));
+          ctx.stroke();
+          mono(ctx, 9.5); ctx.fillStyle = "#dbe6f0";
+          ctx.fillText(prog < 1 ? "vc-relax: SCF step " + nshow : "vc-relax converged", 8, 12);
+        },
+        hud: function () {
+          var ph = phase(), stepN = ph === 1 ? Math.round(1000 * (1 - (t - 1.4) / 5.6)) : 0;
+          var label = ["sampling composition", "denoising, step " + stepN + " / 1000", "DFT vc-relax", "Li⁺ hopping into a vacancy", "next candidate"][ph];
+          return ["Li–Zr–O–Cl", shown, label];
+        }
+      };
+    }
+
+    /* --- Scene C: CO2 on Cu(111), Langevin dynamics with a toy potential --- */
+    function makeCu() {
+      var g = new THREE.Group(); pivot.add(g);
+      var NC = 7, NR = 8, NL = 3, offs = [[0, 0], [0.5, 0.2887], [1.0, 0.5774]];
+      var eq = [], W = NC, D = NR * 0.866;
+      for (var L = 0; L < NL; L++) for (var j = 0; j < NR; j++) for (var i = 0; i < NC; i++) {
+        var x = i + 0.5 * (j % 2) + offs[L][0], z = j * 0.866 + offs[L][1];
+        x = ((x % W) + W) % W; z = ((z % D) + D) % D;
+        eq.push([x - W / 2 + 0.25, -L * 0.816, z - D / 2 + 0.2, L === NL - 1]);
+      }
+      var NCu = eq.length, cp = new Float32Array(NCu * 3), cv3 = new Float32Array(NCu * 3);
+      eq.forEach(function (e, i) { cp[3 * i] = e[0]; cp[3 * i + 1] = e[1]; cp[3 * i + 2] = e[2]; });
+      var cu = inst(sphere, std(0xc77a48, { metalness: 0.45, roughness: 0.48 }), NCu, g);
+      g.position.y = 0;
+      var NM = 3, mc = [], mv = [], mu = [];
+      for (var m0 = 0; m0 < NM; m0++) {
+        mc.push([(m0 - 1) * 2.2, 1.3 + m0 * 1.0, (m0 % 2 ? 1 : -1) * 1.2]);
+        mv.push([gauss() * 0.3, 0, gauss() * 0.3]);
+        var uu = [gauss(), gauss(), gauss()], nn = Math.hypot(uu[0], uu[1], uu[2]); mu.push([uu[0] / nn, uu[1] / nn, uu[2] / nn]);
+      }
+      var cC = inst(sphere, std(0x4b5563, { roughness: 0.4 }), NM, g);
+      var cO = inst(sphere, std(0xef6a3a), NM * 2, g);
+      var bond = inst(cyl, std(0xd9dee4, { roughness: 0.5 }), NM * 2, g);
+      var Tk = 300, y0 = 1.25, Dm = 0.35, am = 2.2, adsorbed = 0;
+      return {
+        group: g,
+        slider: { min: 100, max: 900, step: 10, label: "Temperature (K)" },
+        getT: function () { return Tk; }, setT: function (v) { Tk = v; },
+        view: { rx: 0.55, spin: true, dist: 21 },
+        legend: [["Cu", 0xd07f4c], ["C", 0x4b5563], ["O", 0xef6a3a]],
+        caption: "CO₂ over a three-layer Cu(111) slab, run with Langevin dynamics. Surface atoms rattle around their lattice sites, and CO₂ physisorbs and lies flat on the surface. Turn the temperature up and molecules start to leave. The potential here is a hand-written toy that runs in your browser. My actual runs on Cu(111) + CO₂ used MACE-MP-0 fine-tuned on Catalysis-Hub adsorption data.",
+        step: function (dt) {
+          var kT = 0.1 * Tk / 300, sub = 4, h = Math.min(dt, 0.04) / sub, i, s;
+          for (s = 0; s < sub; s++) {
+            for (i = 0; i < NCu; i++) {
+              if (eq[i][3]) continue;
+              for (var d = 0; d < 3; d++) {
+                var ix = 3 * i + d, f = -40 * (cp[ix] - eq[i][d]) - 4 * cv3[ix];
+                cv3[ix] += f * h + Math.sqrt(2 * 4 * kT * h) * gauss();
+                cp[ix] += cv3[ix] * h;
+              }
+            }
+            adsorbed = 0;
+            for (var m = 0; m < NM; m++) {
+              var c = mc[m], v = mv[m], u = mu[m];
+              var ex = Math.exp(-am * (c[1] - y0)), fy = -2 * Dm * am * ex * (1 - ex);
+              var fx = -0.06 * Math.sin(2 * Math.PI * c[0]), fz = -0.06 * Math.sin(2 * Math.PI * c[2] / 0.866);
+              var gm = 1.2, nz = Math.sqrt(2 * gm * kT * h);
+              v[0] += (fx - gm * v[0]) * h + nz * gauss();
+              v[1] += (fy - gm * v[1]) * h + nz * gauss();
+              v[2] += (fz - gm * v[2]) * h + nz * gauss();
+              c[0] += v[0] * h; c[1] += v[1] * h; c[2] += v[2] * h;
+              if (c[1] > 4.0) { c[1] = 4.0; v[1] = -Math.abs(v[1]); }
+              if (c[1] < 0.75) { c[1] = 0.75; v[1] = Math.abs(v[1]); }
+              if (c[0] > W / 2) c[0] -= W; if (c[0] < -W / 2) c[0] += W;
+              if (c[2] > D / 2) c[2] -= D; if (c[2] < -D / 2) c[2] += D;
+              var near = Math.exp(-Math.pow((c[1] - y0) / 0.6, 2)), dr = Math.sqrt(2 * 1.6 * (kT / 0.1) * h);
+              u[0] += dr * gauss(); u[2] += dr * gauss(); u[1] += dr * gauss() - 6 * near * u[1] * h;
+              var nn = Math.hypot(u[0], u[1], u[2]); u[0] /= nn; u[1] /= nn; u[2] /= nn;
+              if (c[1] < y0 + 0.6) adsorbed++;
+            }
+          }
+        },
+        render: function () {
+          for (var i = 0; i < NCu; i++) put(cu, i, cp[3 * i], cp[3 * i + 1], cp[3 * i + 2], 0.46);
+          for (var m = 0; m < NM; m++) {
+            var c = mc[m], u = mu[m], L2 = 0.46;
+            put(cC, m, c[0], c[1], c[2], 0.2);
+            for (var sgn = -1, k = 0; k < 2; k++, sgn += 2) {
+              put(cO, 2 * m + k, c[0] + sgn * L2 * u[0], c[1] + sgn * L2 * u[1], c[2] + sgn * L2 * u[2], 0.22);
+              tmpV.set(u[0] * sgn, u[1] * sgn, u[2] * sgn);
+              dummy.position.set(c[0] + sgn * L2 * u[0] / 2, c[1] + sgn * L2 * u[1] / 2, c[2] + sgn * L2 * u[2] / 2);
+              dummy.quaternion.setFromUnitVectors(UP, tmpV);
+              dummy.scale.set(0.065, L2, 0.065); dummy.updateMatrix();
+              bond.setMatrixAt(2 * m + k, dummy.matrix);
+            }
+          }
+          cu.instanceMatrix.needsUpdate = cC.instanceMatrix.needsUpdate = cO.instanceMatrix.needsUpdate = bond.instanceMatrix.needsUpdate = true;
+        },
+        hud: function () { return ["Cu(111) + CO₂", "Langevin MD", "T = " + Math.round(Tk) + " K", "on surface " + adsorbed + " / " + NM]; }
+      };
+    }
+
+    var scenes = { sto: makeSTO(), gen: makeGen(), cu: makeCu() }, cur = "sto";
+    var rx = 0, ry = 0, drag = null, lastDrag = -1e9, clock = 0, hudTick = 0, W0 = 0, H0 = 0;
+
+    function syncSlider() {
+      var sc = scenes[cur];
+      if (sc.slider) { slider.value = Math.round(sc.getT()); sOut.textContent = Math.round(sc.getT()); }
+    }
+    function setLegend(sc) {
+      legEl.innerHTML = "";
+      sc.legend.forEach(function (l) {
+        var s = document.createElement("span"), i = document.createElement("i");
+        i.style.background = hexCss(l[1]); s.appendChild(i); s.appendChild(document.createTextNode(l[0])); legEl.appendChild(s);
+      });
+      var hint = document.createElement("span"); hint.textContent = "drag sideways to rotate"; legEl.appendChild(hint);
+    }
+    function hud() {
+      var parts = scenes[cur].hud();
+      if (hudEl.childNodes.length !== parts.length) {
+        hudEl.innerHTML = "";
+        parts.forEach(function () { hudEl.appendChild(document.createElement("span")); });
+      }
+      parts.forEach(function (p, i) { if (hudEl.childNodes[i].textContent !== p) hudEl.childNodes[i].textContent = p; });
+    }
+    function show(name) {
+      if (!scenes[name]) return;
+      cur = name;
+      for (var k in scenes) scenes[k].group.visible = (k === name);
+      tabs.forEach(function (b) { b.setAttribute("aria-selected", b.getAttribute("data-scene") === name ? "true" : "false"); });
+      var sc = scenes[name];
+      rx = sc.view.rx; ry = sc.view.spin ? 0.5 : 0;
+      ctrl.style.display = sc.slider ? "" : "none";
+      if (sc.slider) {
+        slider.min = sc.slider.min; slider.max = sc.slider.max; slider.step = sc.slider.step;
+        sLabel.textContent = sc.slider.label; syncSlider();
+      }
+      plot.style.display = "none";
+      capEl.textContent = sc.caption;
+      setLegend(sc); hud();
+      api.draw();
+    }
+    slider.addEventListener("input", function () {
+      var sc = scenes[cur]; if (!sc.slider) return;
+      sc.setT(+slider.value); sOut.textContent = slider.value; if (!playing) api.draw();
+    });
+    tabs.forEach(function (b) { b.addEventListener("click", function () { show(b.getAttribute("data-scene")); }); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-open]"), function (b) {
+      b.addEventListener("click", function () {
+        show(b.getAttribute("data-open"));
+        document.getElementById("viewer").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      });
+    });
+    cv.addEventListener("pointerdown", function (e) { drag = { x: e.clientX, y: e.clientY, rx: rx, ry: ry }; });
+    cv.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      ry = drag.ry + (e.clientX - drag.x) * 0.01;
+      rx = clamp(drag.rx + (e.clientY - drag.y) * 0.006, -1.3, 1.3);
+      lastDrag = clock; if (!playing) api.draw();
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) { cv.addEventListener(ev, function () { if (drag) lastDrag = clock; drag = null; }); });
+
+    var api = {
+      el: cv,
+      show: show,
+      step: function (dt) {
+        clock += dt;
+        scenes[cur].step(dt);
+        var v = scenes[cur].view;
+        if (!drag && clock - lastDrag > 3.5) {
+          if (v.spin) ry += dt * 0.22;
+          else ry += (0.38 * Math.sin(clock * 0.3) - ry) * Math.min(1, dt * 1.5);
+        }
+        if (++hudTick % 6 === 0) hud();
+      },
+      draw: function () {
+        var w = cv.clientWidth, h = cv.clientHeight;
+        if (w !== W0 || h !== H0) { W0 = w; H0 = h; renderer.setSize(w, h, false); camera.aspect = w / Math.max(h, 1); camera.updateProjectionMatrix(); }
+        var v = scenes[cur].view, narrow = w < 560 ? 1.3 : 1;
+        camera.position.set(0, 0, v.dist * narrow); camera.lookAt(0, 0, 0);
+        pivot.rotation.set(rx, ry, 0);
+        scenes[cur].render();
+        renderer.render(scene, camera);
+      }
+    };
+    if (reduce) { scenes.sto.setT(30); scenes.sto.step(0.016); }
+    show("sto");
+    return api;
+  }
+
   /* ---------- start ---------- */
   function safe(fn, id) {
     var el = document.getElementById(id);
     if (!el) return;
-    try { register(fn(el)); } catch (e) { console.log(id, e); }
+    try { var d = fn(el); if (d) register(d); } catch (e) { console.log(id, e); }
   }
+  safe(Viewer3D, "v3d");
   safe(CH, "ch");
   safe(MD, "md");
   safe(GP, "gp");
